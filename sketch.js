@@ -1,9 +1,11 @@
 movers = [];
+predators = [];
 vals = [];
 vals2 = [];
 mm = 100;
-level = 0;
-areas = [];
+level = 10;
+levels = [];
+start = false;
 a1 = 0;
 var score = 0;
 var s;
@@ -14,48 +16,71 @@ var cl = 40;
 var sMax = 5;
 var aMax = 5;
 var cMax = 5;
-vert = [];
+var img;
 x = [];
 y = [];
 segNum = 33;
 segLength = 12;
 var head;
+var numBoid = 0;
+var currentLevel;
+var numLevels = 0;
+var safePosX;
+var safePosY;
 
 for (var i = 0; i < segNum; i++) {
   x.push(i);
   y.push(i);
 }
 
+function newLevels() {
+  for (i = 1; i < 11; i++) {
+    levels[i] = new Level();
+    safePosX = random(300, width-300);
+    safePosY = random(height-300);
+    levels[i].levelNum = i;
+    levels[i].mid = createVector(((safePosX - safePosX + ((1 / i) * (300))) / 2) + safePosX, ((safePosY - safePosY + ((1 / i) * (300))) / 2) + safePosY);
+    levels[i].vertices = [createVector(safePosX, safePosY), createVector(safePosX + ((1 / i) * (300)), safePosY), createVector(safePosX + ((1 / i) * (300)), safePosY + ((1 / i) * (300))), createVector(safePosX, safePosY + ((1 / i) * (300)))];
+    numLevels++;
+  }
+}
+
+function Level() {
+  this.levelNum = 0;
+  this.mid = 0;
+  this.vertices = 0;
+}
+
+function preload() {
+  img = loadImage("start.jpg");
+}
+
+function nextLevel() {
+  level++;
+  if (level >= numLevels) {
+    level = 1;
+  }
+}
+
 function setup() {
   var cnv = createCanvas(windowWidth, windowHeight);
+  image(img, 0, 0);
   newMovers();
-  newArea();
-  s = 0;
-  a = 2;
-  c = 3;
+  s = random(2);
+  a = random(2, 5);
+  c = random(3, 5);
   headMax = 2;
-  mid = createVector(650, 200);
-  sepSlider = createSlider(0, 100, 0);
-  sepSlider.position(100, 150);
-  cohSlider = createSlider(0, 100, 0);
-  cohSlider.position(100, 250);
-  aliSlider = createSlider(0, 100, 0);
-  aliSlider.position(100, 350);
-  hSlider = createSlider(0, 100, 20);
-  hSlider.position(100, 450)
+  numBoid = mm;
+  newLevels();
+  currentLevel = levels[level];
 }
 
 function windowResized() {
   resizeCanvas(windowWidth, windowHeight);
+  image(img, 0, 0);
 }
 
-function newArea() {
-  vert[0] = createVector(500, 50);
-  vert[1] = createVector(800, 50);
-  vert[2] = createVector(800, 350);
-  vert[3] = createVector(500, 350);
 
-}
 
 function newMovers() {
   for (i = 0; i < mm; i++) {
@@ -73,13 +98,14 @@ function newMovers() {
   repeller.r = random(30, 100);
   repeller.col = color(random(255), random(255), random(255));
   repeller.maxForce = 30;
-
-  head = new Ball();
-  head.pos = createVector(random(300, 400), random(300));
-  head.vel = createVector(random(-5, 5), random(-5, 5));
-  head.r = random(10, 30);
-  head.col = color(220, 150, 20);
-  head.maxSpeed = headMax;
+  for (p = 0; p < level; p++) {
+    predators[p] = new Predator();
+    predators[p].pos = createVector(0, random(300));
+    predators[p].vel = createVector(random(-5, 5), random(-5, 5));
+    predators[p].r = random(10, 30);
+    predators[p].col = color(220, 150, 20);
+    predators[p].maxSpeed = headMax;
+  }
 }
 
 function runMovers() {
@@ -88,34 +114,37 @@ function runMovers() {
   }
   repeller.update();
   repeller.render();
-  head.bounce();
-  head.update();
+  for (j = 0; j < predators.length; j++) {
+    predators[j].bounce();
+    predators[j].update();
+  }
 }
 
 function draw() {
-  background(0);
-  fill(random(255), random(255), random(255))
-  quad(500, 50, 800, 50, 800, 350, 500, 350);
-  runMovers();
-  dragSegment(0, head.pos.x, head.pos.y, 0);
-  for (var i = 0; i < x.length - 1; i++) {
-    dragSegment(i + 1, x[i], y[i], i);
+  if (start === true) {
+    rect(width / 2 - 75, height / 2, 150, 50, 20);
+    rect(width / 2 - 75, height / 2 + 80, 150, 50, 20);
+    rect(width / 2 - 75, height / 2 + 80, 150, 50, 20);
   }
-  s = map(sepSlider.value(), 0, 100, 0, sMax);
-  a = map(aliSlider.value(), 0, 100, 0, aMax);
-  c = map(cohSlider.value(), 0, 100, 0, cMax);
-  headMax = map(hSlider.value(), 0, 100, 0, 10);
-  displayText();
+  if (start === false) {
+    background(0);
+    fill(random(255), random(255), random(255))
+    quad(currentLevel.vertices[0].x, currentLevel.vertices[0].y, currentLevel.vertices[1].x, currentLevel.vertices[1].y, currentLevel.vertices[2].x, currentLevel.vertices[2].y, currentLevel.vertices[3].x, currentLevel.vertices[3].y);
+    runMovers();
+    for (k = 0; k < predators.length; k++) {
+      dragSegment(0, predators[k].pos.x, predators[k].pos.y, 0);
+    }
+    for (var i = 0; i < x.length - 1; i++) {
+      dragSegment(i + 1, x[i], y[i], i);
+    }
+    displayText();
+  }
 }
 
 function displayText() {
   textSize(24);
   fill(10, 20, 100);
-  text("Separation = " + floor(s * 100), 20, 150);
-  text("Cohesion = " + cohSlider.value() + "% of " + cMax, 20, 250)
-  text("Alignment = " + aliSlider.value() + "% of " + aMax, 20, 350);
-  text("Head Max Speed = " + hSlider.value(), 20, 450)
-  text("Score = " + score, 20, 550);
+  text("Score = " + score, 20, 150);
 }
 
 Mover.prototype.flock = function(movers) {
@@ -123,7 +152,7 @@ Mover.prototype.flock = function(movers) {
   var ali = this.align(movers); // Alignment
   var coh = this.cohesion(movers); // Cohesion
   // Use sliders weight these forces
-  if (collideCirclePoly(this.pos.x, this.pos.y, this.r, vert, true) === true) {
+  if (collideCirclePoly(this.pos.x, this.pos.y, this.r, currentLevel.vertices, true) === false) {
     sep.mult(s);
     ali.mult(a);
     coh.mult(c);
@@ -246,7 +275,7 @@ Mover.prototype.applyForce = function(force) {
 }
 
 Mover.prototype.update = function() {
-  
+
   this.atr = new p5.Vector.sub(repeller.pos, this.pos);
   this.atr.normalize();
   this.atr.mult(3);
@@ -254,23 +283,23 @@ Mover.prototype.update = function() {
   this.rpl = new p5.Vector.sub(this.pos, repeller.pos);
   this.rpl.normalize();
   this.rpl.mult(3);
-if(mouseIsPressed === false){
-  if (this.pos.dist(repeller.pos) < 100) {
-    this.applyForce(this.rpl);
+  if (mouseIsPressed === false) {
+    if (this.pos.dist(repeller.pos) < 100) {
+      this.applyForce(this.rpl);
+    }
   }
-}
-if(mouseIsPressed === true){
-  if(this.pos.dist(repeller.pos) < 100){
-    this.applyForce(this.atr);
+  if (mouseIsPressed === true) {
+    if (this.pos.dist(repeller.pos) < 100) {
+      this.applyForce(this.atr);
+    }
   }
-}
-  this.arr = new p5.Vector.sub(mid, this.pos);
+  this.arr = new p5.Vector.sub(currentLevel.mid, this.pos);
   this.arr.normalize();
   this.arr.mult(3);
-  this.arrl = new p5.Vector.sub(this.pos, mid);
+  this.arrl = new p5.Vector.sub(this.pos, currentLevel.mid);
   this.arrl.normalize();
 
-  if (collideCirclePoly(this.pos.x, this.pos.y, this.r, vert) === true) {
+  if (collideCirclePoly(this.pos.x, this.pos.y, this.r, currentLevel.vertices) === true) {
     this.applyForce(this.arrl);
   }
   if (this.t > 200) {
@@ -278,33 +307,32 @@ if(mouseIsPressed === true){
   }
   if (this.t === 250) {
     score += 1;
-    this.pos = createVector(random(300, 500), random(300));
-    this.col = color(random(254), random(254), random(254));
-    this.r = 10;
-    this.t = 0;
+    numBoid--;
   }
 
-  if (collideCirclePoly(this.pos.x, this.pos.y, this.r, vert, true) === true) {
+  if (collideCirclePoly(this.pos.x, this.pos.y, this.r, currentLevel.vertices, true) === true) {
     this.t += 1;
   }
-
-  if (this.pos.dist(head.pos) < 5) {
-    score -= 2;
-    this.r = 0.0001;
-    this.t = 250;
-    
+  for (k = 0; k < predators.length; k++) {
+    if (this.pos.dist(predators[k].pos) < 5 && this.r !== 0) {
+      this.r = 0;
+      score -= 1;
+      this.pos = createVector(0, 0);
+      this.vel = createVector(0, 0);
+    }
   }
-
-  this.vel.add(this.acc);
-  this.vel.limit(this.maxSpeed);
-  this.pos.add(this.vel);
-  this.acc.mult(0);
+  if (this.r !== 0) {
+    this.vel.add(this.acc);
+    this.vel.limit(this.maxSpeed);
+    this.pos.add(this.vel);
+    this.acc.mult(0);
+  }
 }
 
 Mover.prototype.checkEdges = function() {
   if (this.pos.x > width) {
-    this.pos.x = 300;
-  } else if (this.pos.x < 300) {
+    this.pos.x = 0;
+  } else if (this.pos.x < 0) {
     this.pos.x = width;
   }
 
@@ -376,19 +404,19 @@ function segment(x, y, a, ind) {
   pop();
 }
 
-Ball.prototype = new Mover();
+Predator.prototype = new Mover();
 
-function Ball() {
+function Predator() {
   this.update = function() {
-    this.brep = new p5.Vector.sub(this.pos, mid);
+    this.brep = new p5.Vector.sub(this.pos, currentLevel.mid);
     this.brep.normalize();
     this.brep.mult(4);
-    if (collideCirclePoly(this.pos.x, this.pos.y, this.r, vert) === true) {
+    if (collideCirclePoly(this.pos.x, this.pos.y, this.r, currentLevel.vertices) === true) {
       this.vel.add(this.brep);
     }
 
     for (i = 0; i < movers.length; i++) {
-      if (this.pos.dist(movers[i].pos) < 50) {
+      if (this.pos.dist(movers[i].pos) < 50 && movers[i].r !== 0) {
         this.batt = new p5.Vector.sub(movers[i].pos, this.pos);
         this.batt.normalize();
         this.vel.add(this.batt);
@@ -397,11 +425,11 @@ function Ball() {
     }
     this.vel.limit(headMax);
     this.pos.add(this.vel);
-    
+
   }
 
   this.bounce = function() {
-    if (this.pos.x > width || this.pos.x < 300) {
+    if (this.pos.x > width || this.pos.x < 0) {
       this.vel.x *= -1;
     }
 
